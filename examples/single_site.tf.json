@@ -1,0 +1,34 @@
+{
+    "variable": {
+        "sites": {
+            "default": {
+                "site_a" : {
+                    "dns_root": "dev.example.org",
+                    "vpc_cidr": "10.254.0.0/16",
+                    "networks": {
+                        "public": {
+                            "untrust": [ 8, 0 ]
+                        },
+                        "private": {
+                            "trust": {
+                                "subnet": [ 8, 1 ],
+                                "public_ipv4": true
+                            }
+                        }
+                    },
+                    "devices": [
+                        {
+                            "hostname": "firewall",
+                            "type": "fgt",
+                            "license_file": "FGVM02TMxxxxxxxx.lic",
+                            "interfaces": {
+                                "external": { "subnet": "untrust" },
+                                "internal": { "subnet": "trust"}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}
