@@ -29,6 +29,48 @@ Using a sinlge JSON file in the root directory, you define theinfrastructure you
     - 2 x Hubs, each containing a FortiGate, FortiManager, FortiAnalyzer, and FortiTester
     - 2 x Spokes, each containing a FortiGate
 
+# Give Me An Example...
+
+Here's a complete piece of JSON that spins up a FortiGate in AWS, generates RSA keys to authenticate to it, and creates an FQDN of 'firewall.site_a.dev.exmaple.org' that resolves to it's public IP address:
+
+```json
+{
+    "variable": {
+        "sites": {
+            "default": {
+                "site_a" : {
+                    "dns_root": "dev.example.org",
+                    "vpc_cidr": "10.254.0.0/16",
+                    "networks": {
+                        "public": {
+                            "untrust": [ 8, 0 ]
+                        },
+                        "private": {
+                            "trust": {
+                                "subnet": [ 8, 1 ],
+                                "public_ipv4": true
+                            }
+                        }
+                    },
+                    "devices": [
+                        {
+                            "hostname": "firewall",
+                            "type": "fgt",
+                            "license_file": "FGVM02TMxxxxxxxx.lic",
+                            "interfaces": {
+                                "external": { "subnet": "untrust" },
+                                "internal": { "subnet": "trust"}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}
+```
+
+
 # What Can I Configure
 
 You can configure:
