@@ -1,0 +1,4 @@
+*.swp
+*.swo
+terraform.tfstate
+terraform.tfstate.backup

@@ -4,18 +4,44 @@
 
 The goal of FCC was to be able to define your infrastructure in a single place, in a format that can be ingested by other tools (e.g. Ansible or scripts), while still being flexible enough to support different configurations.
 
-The original purpose was to allow me (Greg Foletta) to quickly spin up lab environments, but 
+The original purpose was to allow me (Greg Foletta) to quickly spin up lab environments, but I feel it will have use in the broader community.
+
+# Limitations / Caveats
+
+With simplicity comes limitations, so we'll be up-front about these:
+
+- Only supports AWS (Azure to come)
+- Public/Private network split
+- Traffic between public/private routed through a single firewall
+    - You can provision multiple firewalls, however traffic between inside/outside is not routed through them.
+- Route53 zone is required for DNS FQDNs
 
 # How Does It Work?
 
-A JSON file in this root directory defines the infrastructure you want to spin up. The JSON file is made up of a number if 'sites', each site containing 'site config' and 'device config'. Two example configuration files have been created that you can use as a starting point:
+Using a sinlge JSON file in the root directory, you define theinfrastructure you want to spin up. The JSON file is made up of a number if 'sites', each site containing 'site config' and 'device config'. Two example configuration files have been created that you can use as a starting point:
 
 - [Single Site](examples/single_site.tf.json) - provisions a single FortiGate firewall in a VPC in AWS.
 - [Dual Hub / Dual Spokes](examples/dual_hub_spokes.tf.json) - provisions:
     - 2 x Hubs, each containing a FortiGate, FortiManager, FortiAnalyzer, and FortiTester
     - 2 x Spokes, each containing a FortiGate
 
-Let's take a look at the individual configuration sections.
+# What Can I Configure
+
+You can configure:
+
+- Zero or more 'sites', each one of which is an AWS VPC:
+    - Two routing tables (public/private)
+    - One or more subnets within the routing tables
+- Within each site you can configure zero or more 'devices':
+    - FortiGate
+    - FortiManager
+    - FortiAnalyzer
+    - FortiTesters
+- FQDNs are automatically generated for each device
+- AN RSA key is generated and used to authenticate to each device
+- Licensing is automatically performed by specifying paths to local license files
+
+Let's break down each configuration sections
 
 ## Site Config 
 
@@ -112,7 +138,6 @@ The `interfaces` define the subnets that the device is tethered in:
 
 The subnets are referenced by name.
 
+# Further Info
 
-
-
-
+For more information please contact me on greg@foletta.org
