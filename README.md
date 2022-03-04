@@ -31,7 +31,11 @@ Using a sinlge JSON file in the root directory, you define theinfrastructure you
 
 # Give Me An Example...
 
-Here's a complete piece of JSON that spins up a FortiGate in AWS, generates RSA keys to authenticate to it, and creates an FQDN of 'firewall.site_a.dev.exmaple.org' that resolves to it's public IP address:
+For example, if we wanted to spin up the following:
+
+![Single Site, Single Firewall](example.png)
+
+It could be done with this small snippet of JSON:
 
 ```json
 {
@@ -70,6 +74,7 @@ Here's a complete piece of JSON that spins up a FortiGate in AWS, generates RSA 
 }
 ```
 
+Want another site? No problem: copy and paste the 'site_a' section, rename it to 'site_b', add a different license file, and provision!
 
 # What Can I Configure
 
