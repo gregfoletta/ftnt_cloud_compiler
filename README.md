@@ -6,6 +6,10 @@ The goal of FCC was to be able to define your infrastructure in a single place, 
 
 The original purpose was to allow me (Greg Foletta) to quickly spin up lab environments, but I feel it will have use in the broader community.
 
+# Version
+
+Version 0.2
+
 # Limitations / Caveats
 
 With simplicity comes limitations, so we'll be up-front about these:
@@ -41,7 +45,51 @@ You can configure:
 - AN RSA key is generated and used to authenticate to each device
 - Licensing is automatically performed by specifying paths to local license files
 
-Let's break down each configuration sections
+# What About The AWS Region / Availability Zone
+
+One of the only things that is *not* configured in the JSON file is the AWS region you would like to provision into. This is configured in the `main.tf` file in the root directory.
+
+The different AMIs for each device is taken carte of within the code.
+
+At this stage all infra is provisioned in the 'first' availability zone in each region (e.g. ap-southeast-2a for Australia) and cannot be configured.
+
+# What Do I Need To Run It?
+
+The key prerequisite is terraform, with download information for various platforms [located here](https://www.terraform.io/downloads).
+
+You should also install the [AWS CLI tool](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html).
+
+You dont *need* it, but I would also install [git](https://git-scm.com/download) so you can continue to get updates.
+
+Once that's done you can do the following:
+
+```
+# Clone down the repo 
+git clone https://github.com/gregfoletta/ftnt_cloud_compiler.git
+cd ftnt_cloud_compiler
+
+# Initialise Terraform
+terraform init
+
+# Add a configuration file - look in the 'examples' directory for some starting points
+cp examples/single_site.tf.json .
+
+# Modify the configuration file to your satisfaction
+
+# Ensure each device has a path to a license file
+
+# Ensure you've configured a valid AWS access key in ~/.aws/credentials
+# aws cli tool can do this for you
+aws configure
+
+# Provision your infrastructure
+terraform apply
+
+# Tear down your infrastructure
+terraform destroy
+```
+
+
 
 ## Site Config 
 
