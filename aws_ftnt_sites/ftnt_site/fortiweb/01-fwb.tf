@@ -44,7 +44,7 @@ resource "aws_route53_record" "external" {
 data "template_file" "init_config" {
   template = file("${path.module}/init.conf")
   vars = {
-    license =   file("${var.vars.license_file}")
+    license =   file(local.license_file)
     hostname = "${local.name_suffix}"
   }
 }

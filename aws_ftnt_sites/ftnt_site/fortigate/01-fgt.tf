@@ -70,8 +70,8 @@ resource "aws_network_interface_sg_attachment" "fgt_internal" {
 data "template_file" "fgt_init_config" {
   template = file("${path.module}/fgt_init.conf")
   vars = {
-    license =   file("${var.fgt_vars.license_file}")
-    hostname = "fgt.${var.fgt_vars.hostname}.${var.dns_root.name}"
+    license =   file(local.license_file)
+    hostname = local.name_suffix
   }
 }
 
