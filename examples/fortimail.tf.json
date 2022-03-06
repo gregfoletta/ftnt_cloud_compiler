@@ -1,0 +1,42 @@
+{
+    "variable": {
+        "sites": {
+            "default": {
+                "site_a" : {
+                    "dns_root": "dev.foletta.org",
+                    "vpc_cidr": "10.254.0.0/16",
+                    "networks": {
+                        "public": {
+                            "untrust": [ 8, 0 ]
+                        },
+                        "private": {
+                            "trust": {
+                                "subnet": [ 8, 1 ],
+                                "public_ipv4": true
+                            }
+                        }
+                    },
+                    "devices": [
+                        {
+                            "hostname": "firewall",
+                            "type": "fgt",
+                            "license_file": "licenses/FGVM02TM21017453.lic",
+                            "interfaces": {
+                                "external": { "subnet": "untrust" },
+                                "internal": { "subnet": "trust"}
+                            }
+                        },
+                        {
+                            "hostname": "fortiweb",
+                            "type": "fwb",
+                            "license_file": "licenses/FGVM02TM21017453.lic",
+                            "interfaces": {
+                                "mgmt": { "subnet": "trust" }
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}

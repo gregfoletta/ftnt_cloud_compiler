@@ -9,6 +9,7 @@ locals {
     name_suffix = "${var.faz_vars.hostname}.${var.site_name}.${var.dns_root.name}"
     fortios = try(var.faz_vars.fortios, "7.0.3")
     instance_type = try(var.faz_vars.fortios, "m4.large")
+    license_file = try(var.faz_vars.license_file, "licenses/${local.name_suffix}")
 }
 
 data "aws_region" "current" {}
@@ -43,7 +44,7 @@ resource "aws_route53_record" "fgt_external" {
 data "template_file" "faz_init_config" {
   template = file("${path.module}/faz_init.conf")
   vars = {
-    license =   file("${var.faz_vars.license_file}")
+    license =   file(local.license_file)
     hostname = "${local.name_suffix}"
   }
 }

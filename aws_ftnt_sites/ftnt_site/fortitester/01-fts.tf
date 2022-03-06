@@ -9,6 +9,7 @@ locals {
     name_suffix = "${var.fts_vars.hostname}.${var.site_name}.${var.dns_root.name}"
     instance_type = try(var.fts_vars.instance_type, "c5.xlarge")
     fortios = try(var.fts_vars.fortios, "4.1.1")
+    license_file = try(var.fts_vars.license_file, "licenses/${local.name_suffix}")
 }
 
 data "aws_region" "current" {}
@@ -43,7 +44,7 @@ resource "aws_route53_record" "fgt_external" {
 data "template_file" "fts_init_config" {
   template = file("${path.module}/fts_init.conf")
   vars = {
-    license =   file("${var.fts_vars.license_file}")
+    license =   file(local.license_file)
     hostname = "${local.name_suffix}"
   }
 }

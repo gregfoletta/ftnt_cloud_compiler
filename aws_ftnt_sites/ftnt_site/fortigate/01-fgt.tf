@@ -12,6 +12,7 @@ locals {
     name_suffix = "${var.fgt_vars.hostname}.${var.site_name}.${var.dns_root.name}"
     fortios = try(var.fgt_vars.fortios, "7.0.3")
     instance_type = try(var.fgt_vars.instance_type, "t2.small")
+    license_file = try(var.fgt_vars.license_file, "licenses/${local.name_suffix}")
 }
 
 data "aws_region" "current" {}

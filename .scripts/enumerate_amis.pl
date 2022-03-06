@@ -11,6 +11,8 @@ use JSON;
 my %args;
 GetOptions(
     \%args,
+    'device=s',
+    'region=s',
     'help' => sub { pod2usage(1) }
 ) or pod2usage(2);
 
@@ -18,7 +20,11 @@ GetOptions(
 
 =head1 NAME
 
+enumerate_amis - Enumerates the Fortinet device AMIs across regions
+
 =head1 SYNOPSIS
+
+./enumerate_amis [--device <device_tla>] [--region <region>]
 
 =cut
 
@@ -49,35 +55,57 @@ my @aws_regions = qw(
 );
 
 my @image_types = (
-    { name => "FortiGate", "search_string" => 'FortiGate-VM64-AWS build*' }, 
-    { name => "FortiManager", "search_string" => 'FortiManager VM64-AWS build*' }, 
-    { name => "FortiAnalyzer", "search_string" => 'FortiAnalyzer VM64-AWS build*'  }
+    { name => "fgt", "name_filter" => 'FortiGate-VM64-AWS build*' }, 
+    { name => "faz", "name_filter" => 'FortiManager VM64-AWS build*' }, 
+    { name => "fmg", "name_filter" => 'FortiAnalyzer VM64-AWS build*'  },
+    { name => "fml", "name_filter" => 'FortiMail*', version_regex => qr{\((\d+\.\d+\.\d+) GA\)} },
+    { name => "fwb", "name_filter" => 'FortiWeb*BYOL*', version_regex => qr{FortiWeb-AWS-(\d+\.\d+\.\d+)} },
+    { name => "fac", "name_filter" => 'FortiWeb*BYOL*', version_regex => qr{FortiWeb-AWS-(\d+\.\d+\.\d+)} },
+    { name => "fts", "name_filter" => 'FortiTester-AWS-BYOL*' },
 );
+
+if ($args{device}) {
+    @image_types = grep { $_->{name} eq $args{device} } @image_types;
+    warn "No device '$args{device}' found" unless @image_types;
+}
+
+if ($args{region}) {
+    @aws_regions = grep { $_ eq $args{region} } @aws_regions;
+    warn "No region '$args{region}' found" unless @aws_regions
+}
+
 
 foreach (@image_types) {
     say STDERR $_->{name};
-    say encode_json( { get_hvm_images_from_description( $_->{search_string}, @aws_regions) } );
+    print JSON->new->pretty->encode({ 
+        get_hvm_images_from_description(
+            $_->{name_filter},
+            $_->{version_regex},
+            @aws_regions
+        )
+    });
 }
 
 sub get_hvm_images_from_description {
-    my ($description, @regions) = @_;
+    my ($name_filter, $version_regex, @regions) = @_;
+
+    $version_regex //= qr{\((\d+\.\d+\.\d+)\)};
 
     my %amis_region_version;
-
     for my $region (@regions) {
         say STDERR "Region: $region";
         my $ec2 = Paws->service('EC2', region => $region);
 
         my $images = $ec2->DescribeImages(
             Filters => [
-                { Name => 'description', Values => [$description]},
+                { Name => 'name', Values => [$name_filter]},
                 { Name => 'virtualization-type', Values => ['hvm'] }
             ]
         );
 
         for my $img (@{ $images->Images() }) {
             # Strip out the version number
-            my ($version) = $img->Name =~ m{build\d+ \((\d\.\d\.\d)\)};
+            my ($version) = ($img->Name =~ m{$version_regex});
             if (!$version) {
                 warn "No version found for '".$img->Name."'";
                 next;
