@@ -50,7 +50,7 @@ data "template_file" "fts_init_config" {
 }
 
 resource "aws_instance" "fts" {
-    ami               = local.amis[data.aws_region.current.name][var.fts_vars.fortios]
+    ami               = local.amis[data.aws_region.current.name][local.fortios]
     instance_type     = local.instance_type
     availability_zone = var.az
     key_name          = var.key_name
