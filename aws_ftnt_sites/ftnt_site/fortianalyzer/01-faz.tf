@@ -9,7 +9,7 @@ locals {
     name_suffix = "${var.faz_vars.hostname}.${var.site_name}.${var.dns_root.name}"
     fortios = try(var.faz_vars.fortios, "7.0.3")
     instance_type = try(var.faz_vars.fortios, "m4.large")
-    license_file = try(var.faz_vars.license_file, "licenses/${local.name_suffix}")
+    license_file = try(var.faz_vars.license_file, "licenses/${var.dns_root.name}/${var.site_name}/${var.faz_vars.hostname}")
 }
 
 data "aws_region" "current" {}
