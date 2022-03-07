@@ -60,7 +60,7 @@ my @image_types = (
     { name => "fmg", "name_filter" => 'FortiAnalyzer VM64-AWS build*'  },
     { name => "fml", "name_filter" => 'FortiMail*', version_regex => qr{\((\d+\.\d+\.\d+) GA\)} },
     { name => "fwb", "name_filter" => 'FortiWeb*BYOL*', version_regex => qr{FortiWeb-AWS-(\d+\.\d+\.\d+)} },
-    { name => "fac", "name_filter" => 'FortiWeb*BYOL*', version_regex => qr{FortiWeb-AWS-(\d+\.\d+\.\d+)} },
+    { name => "fac", "name_filter" => 'FAC-*', version_regex => qr{FAC-XEN-v?(\d+(\.\d+)*)} },
     { name => "fts", "name_filter" => 'FortiTester-AWS-BYOL*' },
 );
 
