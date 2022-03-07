@@ -6,6 +6,7 @@ locals {
     fts = { for device in var.site_vars.devices : device.hostname => device if device.type == "fts" }
     fml = { for device in var.site_vars.devices : device.hostname => device if device.type == "fml" }
     fwb = { for device in var.site_vars.devices : device.hostname => device if device.type == "fwb" }
+    fac = { for device in var.site_vars.devices : device.hostname => device if device.type == "fac" }
 }
 
 # For each site, create the site
@@ -70,6 +71,17 @@ module "fortimail" {
 module "fortiweb" {
     for_each = local.fwb
     source = "./fortiweb"
+    site_name = var.site_name
+    vars = each.value
+    subnet_id = aws_subnet.private_subnets[ each.value.interfaces.mgmt.subnet ].id
+    dns_root = data.aws_route53_zone.root
+    az = data.aws_availability_zones.available.names[0]
+    key_name = var.key_name
+}
+
+module "fortiauth" {
+    for_each = local.fwb
+    source = "./fortiauth"
     site_name = var.site_name
     vars = each.value
     subnet_id = aws_subnet.private_subnets[ each.value.interfaces.mgmt.subnet ].id
