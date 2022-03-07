@@ -80,7 +80,7 @@ module "fortiweb" {
 }
 
 module "fortiauth" {
-    for_each = local.fwb
+    for_each = local.fac
     source = "./fortiauth"
     site_name = var.site_name
     vars = each.value

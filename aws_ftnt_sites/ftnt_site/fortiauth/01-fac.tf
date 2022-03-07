@@ -8,7 +8,7 @@ variable "key_name" {}
 locals {
     name_suffix = "${var.vars.hostname}.${var.site_name}.${var.dns_root.name}"
     fortios = try(var.vars.fortios, "6.3.17")
-    instance_type = try(var.vars.fortios, "t2.small")
+    instance_type = try(var.vars.instance_type, "t2.small")
     license_file = try(var.vars.license_file, "licenses/${var.dns_root.name}/${var.site_name}/${var.vars.hostname}")
 }
 
