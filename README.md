@@ -73,11 +73,14 @@ cd ftnt_cloud_compiler
 terraform init
 
 # Add a configuration file - look in the 'examples' directory for some starting points
-cp examples/single_site.tf.json .
+cp examples/firewall_only/firewall_only.tf.json .
 
 # Modify the configuration file to your satisfaction
 
-# Ensure each device has a path to a license file
+# Ensure each device has a path to a license file.
+# I recommend keeping licenses in a separate, private repository and
+# cloning them in:
+git clone https://<path to license repo> licenses
 
 # Ensure you've configured a valid AWS access key in ~/.aws/credentials
 # aws cli tool can do this for you
