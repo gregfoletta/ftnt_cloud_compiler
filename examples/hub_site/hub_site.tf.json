@@ -2,7 +2,7 @@
     "variable": {
         "sites": {
             "default": {
-                "hub_1" : {
+               "hub" : {
                     "dns_root": "dev.foletta.org",
                     "vpc_cidr": "10.254.0.0/16",
                     "networks": {
@@ -18,7 +18,7 @@
                     },
                     "devices": [
                         {
-                            "hostname": "firewall",
+                            "hostname": "fw",
                             "type": "fgt",
                             "interfaces": {
                                 "external": { "subnet": "untrust" },
@@ -26,14 +26,14 @@
                             }
                         },
                         {
-                            "hostname": "manager",
+                            "hostname": "mgr",
                             "type": "fmg",
                             "interfaces": {
                                 "mgmt": { "subnet": "trust" }
                             }
                         },
                         {
-                            "hostname": "analyzer",
+                            "hostname": "anlz",
                             "type": "faz",
                             "interfaces": {
                                 "mgmt": { "subnet": "trust" }

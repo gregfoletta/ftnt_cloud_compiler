@@ -3,7 +3,7 @@
         "sites": {
             "default": {
                 "site_a" : {
-                    "dns_root": "dev.foletta.org",
+                    "dns_root": "prod.foletta.org",
                     "vpc_cidr": "10.254.0.0/16",
                     "networks": {
                         "public": {
@@ -18,7 +18,7 @@
                     },
                     "devices": [
                         {
-                            "hostname": "firewall",
+                            "hostname": "fw",
                             "type": "fgt",
                             "interfaces": {
                                 "external": { "subnet": "untrust" },

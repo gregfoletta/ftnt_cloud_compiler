@@ -3,7 +3,7 @@
         "sites": {
             "default": {
                 "site_a" : {
-                    "dns_root": "dev.example.org",
+                    "dns_root": "dev.foletta.org",
                     "vpc_cidr": "10.254.0.0/16",
                     "networks": {
                         "public": {
@@ -20,7 +20,9 @@
                         {
                             "hostname": "firewall",
                             "type": "fgt",
-                            "license_file": "FGVM02TMxxxxxxxx.lic",
+                            "license_file": "licenses/FGVM02TMxxxxxxxx.lic",
+                            "fortios:": "6.2.3", 
+                            "instance_type": "c5d.large",
                             "interfaces": {
                                 "external": { "subnet": "untrust" },
                                 "internal": { "subnet": "trust"}
