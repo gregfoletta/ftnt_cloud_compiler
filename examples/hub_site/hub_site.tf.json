@@ -13,12 +13,16 @@
                             "trust": {
                                 "subnet": [ 8, 1 ],
                                 "public_ipv4": true
+                            },
+                            "rds_1": {
+                                "subnet": [ 8, 2 ],
+                                "az": 1
                             }
                         }
                     },
                     "devices": [
                         {
-                            "hostname": "fw",
+                            "hostname": "firewall",
                             "type": "fgt",
                             "interfaces": {
                                 "external": { "subnet": "untrust" },
@@ -26,17 +30,25 @@
                             }
                         },
                         {
-                            "hostname": "mgr",
+                            "hostname": "manager",
                             "type": "fmg",
                             "interfaces": {
                                 "mgmt": { "subnet": "trust" }
                             }
                         },
                         {
-                            "hostname": "anlz",
+                            "hostname": "analyzer",
                             "type": "faz",
                             "interfaces": {
                                 "mgmt": { "subnet": "trust" }
+                            }
+                        },
+                        {
+                            "hostname": "portal",
+                            "type": "fpc",
+                            "interfaces": {
+                                "mgmt": { "subnet": "trust" },
+                                "db_a": { "subnet": "rds_1" }
                             }
                         }
                     ]
