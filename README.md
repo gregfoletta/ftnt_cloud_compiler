@@ -13,7 +13,7 @@ The original purpose was to allow me (Greg Foletta) to quickly spin up lab envir
 
 # Version
 
-Version 0.2
+Version 0.3 ([Change Log](CHANGELOG.md))
 
 # Disclaimer
 
