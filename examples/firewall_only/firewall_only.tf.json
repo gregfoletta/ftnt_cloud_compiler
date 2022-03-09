@@ -3,8 +3,9 @@
         "sites": {
             "default": {
                 "site_a" : {
-                    "dns_root": "dev.foletta.org",
-                    "vpc_cidr": "10.254.0.0/16",
+                    "location": "Australia Southeast",
+                    "dns_root": "az.foletta.org",
+                    "cidr": "10.254.0.0/16",
                     "networks": {
                         "public": {
                             "untrust": [ 8, 0 ]
