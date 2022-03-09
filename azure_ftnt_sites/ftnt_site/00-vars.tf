@@ -1,8 +1,7 @@
 variable "site_name" {}
 variable "site_vars" {}
-variable "key_name" {}
+variable "public_key" {}
 
-data "aws_route53_zone" "root" {
-  name         = var.site_vars.dns_root
+data "azurerm_dns_zone" "root" {
+    name         = var.site_vars.dns_root
 }
-

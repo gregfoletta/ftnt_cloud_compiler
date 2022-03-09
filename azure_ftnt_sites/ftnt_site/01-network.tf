@@ -1,189 +1,142 @@
-data "aws_availability_zones" "available" {
-  state = "available"
-}
-
 locals {
-    name_suffix = "${var.site_name}.${data.aws_route53_zone.root.name}"
+    site_fqdn = "${var.site_name}.${data.azurerm_dns_zone.root.name}"
 }
 
+#data "aws_availability_zones" "available" {
+#  state = "available"
+#}
 
-resource "aws_vpc" "ftnt_hub" {
-    cidr_block           = var.site_vars.vpc_cidr
-    enable_dns_support   = true
-    enable_dns_hostnames = true
-    enable_classiclink   = false
-    tags = {
-        Name = "vpc.${local.name_suffix}"
-    }
+resource "azurerm_resource_group" "site_rg" {
+  name     = local.site_fqdn
+  location = var.site_vars.location
 }
 
-resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.ftnt_hub.id
+resource "azurerm_virtual_network" "vnet" {
+  name                = local.site_fqdn
+  address_space       = [var.site_vars.cidr]
+  location            = var.site_vars.location
+  resource_group_name = azurerm_resource_group.site_rg.name
 
   tags = {
-    Name = "public.${local.name_suffix}"
+    site = local.site_fqdn
   }
 }
 
-resource "aws_route_table" "private" {
-  vpc_id = aws_vpc.ftnt_hub.id
-
-  tags = {
-    Name = "private.${local.name_suffix}"
-  }
-}
-
-resource "aws_route_table" "igw" {
-  vpc_id = aws_vpc.ftnt_hub.id
-
-  tags = {
-    Name = "igw.${local.name_suffix}"
-  }
-}
-
-
-resource "aws_subnet" "public_subnets" {
-    for_each = var.site_vars.networks.public
-    vpc_id            = aws_vpc.ftnt_hub.id
-    availability_zone = data.aws_availability_zones.available.names[0]
-    cidr_block        = cidrsubnet( var.site_vars.vpc_cidr, each.value[0], each.value[1] )
-    tags = {
-        Name = "${each.key}.public.${local.name_suffix}"
-    }
-}
-
-resource "aws_subnet" "private_subnets" {
-    for_each = var.site_vars.networks.private
-    vpc_id            = aws_vpc.ftnt_hub.id
-    availability_zone = data.aws_availability_zones.available.names[0]
-    cidr_block        = cidrsubnet( var.site_vars.vpc_cidr, each.value.subnet[0], each.value.subnet[1] )
-    map_public_ip_on_launch = try( each.value.public_ipv4, "false" ) 
-    tags = {
-        Name = "${each.key}.private.${local.name_suffix}"
-    }
-}
-
-
-resource "aws_route_table_association" "public_associate" {
-    for_each = aws_subnet.public_subnets
-
-    subnet_id      = each.value.id
-    route_table_id = aws_route_table.public.id
-}
-
-
-resource "aws_route_table_association" "private_associate" {
-    for_each = aws_subnet.private_subnets
-
-    subnet_id      = each.value.id
-    route_table_id = aws_route_table.private.id
-}
-
-resource "aws_route_table_association" "igw_associate" {
-    gateway_id = aws_internet_gateway.gw.id
-    route_table_id = aws_route_table.igw.id
-}
-
-resource "aws_internet_gateway" "gw" {
-  vpc_id = aws_vpc.ftnt_hub.id
-  tags = {
-    Name = "igw.${local.name_suffix}"
-  }
+resource "azurerm_route_table" "private" {
+  resource_group_name = azurerm_resource_group.site_rg.name
+  location            = var.site_vars.location
+  depends_on          = [module.fortigate]
+  name                = "private.${local.site_fqdn}"
 }
 
 locals {
     first_fgt = module.fortigate[ keys(local.fgt)[0] ]
 }
 
-resource "aws_route" "internal_route" {
-  depends_on             = [module.fortigate]
-  route_table_id         = aws_route_table.private.id
-  destination_cidr_block = "0.0.0.0/0"
-  network_interface_id   = local.first_fgt.internal_interface.id
+resource "azurerm_route" "default" {
+  resource_group_name = azurerm_resource_group.site_rg.name
+  name                   = "default.private.${local.site_fqdn}"
+  route_table_name       = azurerm_route_table.private.name
+  address_prefix         = "0.0.0.0/0"
+  next_hop_type          = "VirtualAppliance"
+  next_hop_in_ip_address = local.first_fgt.internal_ip
+}
+
+resource "azurerm_subnet_route_table_association" "private_associate" {
+  depends_on     = [azurerm_route_table.private]
+  subnet_id      = azurerm_subnet.private.id
+  route_table_id = azurerm_route_table.private.id
+}
+
+resource "azurerm_subnet" "public" {
+  for_each = var.site_vars.networks.public
+  resource_group_name = azurerm_resource_group.site_rg.name
+  virtual_network_name = azurerm_virtual_network.vnet.name
+  name                 = "${each.key}.public.${local.site_fqdn}"
+  address_prefixes     = [cidrsubnet( var.site_vars.cidr, each.value[0], each.value[1] )]
+}
+
+resource "azurerm_subnet" "private" {
+  for_each = var.site_vars.networks.private
+  resource_group_name = azurerm_resource_group.site_rg.name
+  virtual_network_name = azurerm_virtual_network.vnet.name
+  name                 = "${each.key}.private.${local.site_fqdn}"
+  address_prefixes     = [ cidrsubnet( var.site_vars.cidr, each.value.subnet[0], each.value.subnet[1] ) ]
 }
 
 
-resource "aws_route" "external_route" {
-  route_table_id         = aws_route_table.public.id
-  destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = aws_internet_gateway.gw.id
+
+
+//External security group
+resource "azurerm_network_security_group" "fgt_external" {
+  name        = "external.sg.${local.site_fqdn}"
+  location            = var.site_vars.location
+  resource_group_name = azurerm_resource_group.site_rg.name
 }
 
 
-resource "aws_route" "igw_internal_routes" {
-  depends_on             = [module.fortigate]
-  for_each = { for name, network in var.site_vars.networks.private : name => network if network.public_ipv4 == true }
-  route_table_id         = aws_route_table.igw.id
-  destination_cidr_block = cidrsubnet( var.site_vars.vpc_cidr, each.value.subnet[0], each.value.subnet[1] )
-  network_interface_id   = local.first_fgt.external_interface.id
+resource "azurerm_network_security_rule" "fgt_external_outbound" {
+  name                       = "Outbound"
+  priority                   = 256 
+  direction                  = "Outbound"
+  access                     = "Allow"
+  protocol                   = "Tcp"
+  source_port_range          = "*"
+  destination_port_range     = "*"
+  source_address_prefix      = "*"
+  destination_address_prefix = "*"
+  resource_group_name = azurerm_resource_group.site_rg.name
+  network_security_group_name = azurerm_network_security_group.fgt_external
 }
 
 
-resource "aws_security_group" "fgt_external" {
-  name        = "external.sg.${local.name_suffix}"
-  vpc_id      = aws_vpc.ftnt_hub.id
-
-    ingress {
-        protocol = "icmp"
-        from_port = 8
-        to_port = 0
-        cidr_blocks = ["0.0.0.0/0"]
-    }
-    
-
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "6"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "6"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 8443
-    to_port     = 8443
-    protocol    = "6"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "external.sg.${local.name_suffix}"
-  }
+resource "azurerm_network_security_rule" "fgt_external_inbound" {
+  name                       = "Inbound"
+  priority                   = 256 
+  direction                  = "Inbound"
+  access                     = "Allow"
+  protocol                   = "Tcp"
+  source_port_range          = "*"
+  destination_port_range     = "*"
+  source_address_prefix      = "*"
+  destination_address_prefix = "*"
+  resource_group_name = azurerm_resource_group.site_rg.name
+  network_security_group_name = azurerm_network_security_group.fgt_external
 }
 
-resource "aws_security_group" "fgt_internal" {
-  name        = "internal.sg.${local.name_suffix}"
-  vpc_id      = aws_vpc.ftnt_hub.id
 
-  ingress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "internal.sg.${local.name_suffix}"
-  }
+// Internal security group
+resource "azurerm_network_security_group" "fgt_internal" {
+  name        = "external.sg.${local.site_fqdn}"
+  location            = var.site_vars.location
+  resource_group_name = azurerm_resource_group.site_rg.name
 }
 
+resource "azurerm_network_security_rule" "fgt_internal_outbound" {
+  name                       = "Outbound"
+  priority                   = 256 
+  direction                  = "Outbound"
+  access                     = "Allow"
+  protocol                   = "Tcp"
+  source_port_range          = "*"
+  destination_port_range     = "*"
+  source_address_prefix      = "*"
+  destination_address_prefix = "*"
+  resource_group_name = azurerm_resource_group.site_rg.name
+  network_security_group_name = azurerm_network_security_group.fgt_external
+}
+
+
+resource "azurerm_network_security_rule" "fgt_internal_inbound" {
+  name                       = "Inbound"
+  priority                   = 256 
+  direction                  = "Inbound"
+  access                     = "Allow"
+  protocol                   = "Tcp"
+  source_port_range          = "*"
+  destination_port_range     = "*"
+  source_address_prefix      = "*"
+  destination_address_prefix = "*"
+  resource_group_name = azurerm_resource_group.site_rg.name
+  network_security_group_name = azurerm_network_security_group.fgt_internal
+}
