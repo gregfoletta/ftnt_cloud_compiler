@@ -29,26 +29,21 @@ resource "azurerm_route_table" "private" {
   name                = "private.${local.site_fqdn}"
 }
 
-locals {
-    first_fgt = module.fortigate[ keys(local.fgt)[0] ]
-}
+#locals {
+#    first_fgt = module.fortigate[ keys(local.fgt)[0] ]
+#}
+#
+#resource "azurerm_route" "default" {
+#  resource_group_name = azurerm_resource_group.site_rg.name
+#  name                   = "default.private.${local.site_fqdn}"
+#  route_table_name       = azurerm_route_table.private.name
+#  address_prefix         = "0.0.0.0/0"
+#  next_hop_type          = "VirtualAppliance"
+#  next_hop_in_ip_address = local.first_fgt.internal_ip
+#}
 
-resource "azurerm_route" "default" {
-  resource_group_name = azurerm_resource_group.site_rg.name
-  name                   = "default.private.${local.site_fqdn}"
-  route_table_name       = azurerm_route_table.private.name
-  address_prefix         = "0.0.0.0/0"
-  next_hop_type          = "VirtualAppliance"
-  next_hop_in_ip_address = local.first_fgt.internal_ip
-}
 
-resource "azurerm_subnet_route_table_association" "private_associate" {
-  depends_on     = [azurerm_route_table.private]
-  subnet_id      = azurerm_subnet.private.id
-  route_table_id = azurerm_route_table.private.id
-}
-
-resource "azurerm_subnet" "public" {
+resource "azurerm_subnet" "public_subnets" {
   for_each = var.site_vars.networks.public
   resource_group_name = azurerm_resource_group.site_rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
@@ -56,7 +51,7 @@ resource "azurerm_subnet" "public" {
   address_prefixes     = [cidrsubnet( var.site_vars.cidr, each.value[0], each.value[1] )]
 }
 
-resource "azurerm_subnet" "private" {
+resource "azurerm_subnet" "private_subnets" {
   for_each = var.site_vars.networks.private
   resource_group_name = azurerm_resource_group.site_rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
@@ -64,6 +59,11 @@ resource "azurerm_subnet" "private" {
   address_prefixes     = [ cidrsubnet( var.site_vars.cidr, each.value.subnet[0], each.value.subnet[1] ) ]
 }
 
+#resource "azurerm_subnet_route_table_association" "private_associate" {
+#  for_each = azurem_subnet.private_subnets[*].id
+#  subnet_id      = each.value
+#  route_table_id = azurerm_route_table.private.id
+#}
 
 
 
@@ -86,7 +86,7 @@ resource "azurerm_network_security_rule" "fgt_external_outbound" {
   source_address_prefix      = "*"
   destination_address_prefix = "*"
   resource_group_name = azurerm_resource_group.site_rg.name
-  network_security_group_name = azurerm_network_security_group.fgt_external
+  network_security_group_name = azurerm_network_security_group.fgt_external.id
 }
 
 
@@ -101,7 +101,7 @@ resource "azurerm_network_security_rule" "fgt_external_inbound" {
   source_address_prefix      = "*"
   destination_address_prefix = "*"
   resource_group_name = azurerm_resource_group.site_rg.name
-  network_security_group_name = azurerm_network_security_group.fgt_external
+  network_security_group_name = azurerm_network_security_group.fgt_external.id
 }
 
 
@@ -123,7 +123,7 @@ resource "azurerm_network_security_rule" "fgt_internal_outbound" {
   source_address_prefix      = "*"
   destination_address_prefix = "*"
   resource_group_name = azurerm_resource_group.site_rg.name
-  network_security_group_name = azurerm_network_security_group.fgt_external
+  network_security_group_name = azurerm_network_security_group.fgt_internal.id
 }
 
 
@@ -138,5 +138,5 @@ resource "azurerm_network_security_rule" "fgt_internal_inbound" {
   source_address_prefix      = "*"
   destination_address_prefix = "*"
   resource_group_name = azurerm_resource_group.site_rg.name
-  network_security_group_name = azurerm_network_security_group.fgt_internal
+  network_security_group_name = azurerm_network_security_group.fgt_internal.id
 }

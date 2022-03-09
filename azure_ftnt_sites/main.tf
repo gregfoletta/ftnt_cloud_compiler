@@ -1,11 +1,3 @@
-terraform {
-  required_providers {
-    provider "azurerm" {
-        features {}
-    }
-  }
-}
-
 variable "sites" {} 
 
 # Create a keypair for authentication to devices
