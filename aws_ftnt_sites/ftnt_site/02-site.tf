@@ -7,6 +7,7 @@ locals {
     fml = { for device in var.site_vars.devices : device.hostname => device if device.type == "fml" }
     fwb = { for device in var.site_vars.devices : device.hostname => device if device.type == "fwb" }
     fac = { for device in var.site_vars.devices : device.hostname => device if device.type == "fac" }
+    fpc = { for device in var.site_vars.devices : device.hostname => device if device.type == "fpc" }
 }
 
 # For each site, create the site
@@ -85,6 +86,18 @@ module "fortiauth" {
     site_name = var.site_name
     vars = each.value
     subnet_id = aws_subnet.private_subnets[ each.value.interfaces.mgmt.subnet ].id
+    dns_root = data.aws_route53_zone.root
+    az = data.aws_availability_zones.available.names[0]
+    key_name = var.key_name
+}
+
+module "fortiportal" {
+    for_each = local.fpc
+    source = "./fortiportal"
+    site_name = var.site_name
+    vars = each.value
+    subnet_id = aws_subnet.private_subnets[ each.value.interfaces.mgmt.subnet ].id
+    db_subnet_id = aws_subnet.private_subnets[ each.value.interfaces.db_a.subnet ].id
     dns_root = data.aws_route53_zone.root
     az = data.aws_availability_zones.available.names[0]
     key_name = var.key_name

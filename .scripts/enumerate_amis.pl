@@ -62,6 +62,7 @@ my @image_types = (
     { name => "fwb", "name_filter" => 'FortiWeb*BYOL*', version_regex => qr{FortiWeb-AWS-(\d+\.\d+\.\d+)} },
     { name => "fac", "name_filter" => 'FAC-*', version_regex => qr{FAC-XEN-v?(\d+(\.\d+)*)} },
     { name => "fts", "name_filter" => 'FortiTester-AWS-BYOL*' },
+    { name => "fpc", "name_filter" => 'FortiPortal*' },
 );
 
 if ($args{device}) {

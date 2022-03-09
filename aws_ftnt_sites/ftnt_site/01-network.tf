@@ -55,7 +55,7 @@ resource "aws_subnet" "public_subnets" {
 resource "aws_subnet" "private_subnets" {
     for_each = var.site_vars.networks.private
     vpc_id            = aws_vpc.ftnt_hub.id
-    availability_zone = data.aws_availability_zones.available.names[0]
+    availability_zone = data.aws_availability_zones.available.names[ try(each.value.az, 0) ]
     cidr_block        = cidrsubnet( var.site_vars.vpc_cidr, each.value.subnet[0], each.value.subnet[1] )
     map_public_ip_on_launch = try( each.value.public_ipv4, "false" ) 
     tags = {
@@ -112,7 +112,7 @@ resource "aws_route" "external_route" {
 
 resource "aws_route" "igw_internal_routes" {
   depends_on             = [module.fortigate]
-  for_each = { for name, network in var.site_vars.networks.private : name => network if network.public_ipv4 == true }
+  for_each = { for name, network in var.site_vars.networks.private : name => network if try(network.public_ipv4, false) == true }
   route_table_id         = aws_route_table.igw.id
   destination_cidr_block = cidrsubnet( var.site_vars.vpc_cidr, each.value.subnet[0], each.value.subnet[1] )
   network_interface_id   = local.first_fgt.external_interface.id

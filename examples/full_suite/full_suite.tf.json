@@ -13,6 +13,10 @@
                             "trust": {
                                 "subnet": [ 8, 1 ],
                                 "public_ipv4": true
+                            },
+                            "rds_1": {
+                                "subnet": [ 8, 2 ],
+                                "az": 1
                             }
                         }
                     },
@@ -65,6 +69,14 @@
                             "type": "fwb",
                             "interfaces": {
                                 "mgmt": { "subnet": "trust" }
+                            }
+                        },
+                        {
+                            "hostname": "portal",
+                            "type": "fpc",
+                            "interfaces": {
+                                "mgmt": { "subnet": "trust" },
+                                "db_a": { "subnet": "rds_1" }
                             }
                         }
                     ]
