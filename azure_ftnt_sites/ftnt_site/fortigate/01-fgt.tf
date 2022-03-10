@@ -13,7 +13,7 @@ locals {
     device_fqdn = "${var.vars.hostname}.${var.site_name}.${var.dns_root.name}"
     site_fqdn = "${var.site_name}.${var.dns_root.name}"
     fortios = try(var.vars.fortios, "7.0.3")
-    instance_type = try(var.vars.instance_type, "t2.small")
+    instance_type = try(var.vars.instance_type, "Standard_F4")
     license_file = try(var.vars.license_file, "licenses/${var.dns_root.name}/${var.site_name}/${var.vars.hostname}")
 }
 
@@ -29,13 +29,13 @@ resource "azurerm_public_ip" "external" {
   }
 }
 
-resource "azurerm_dns_a_record" "external" {
-  name                = local.device_fqdn
-  zone_name           = var.dns_root.name
-  resource_group_name = var.resource_group
-  ttl                 = 300
-  records             = [azurerm_public_ip.external.ip_address]
-}
+#resource "azurerm_dns_a_record" "external" {
+#  name                = "${var.vars.hostname}.${var.site_name}"
+#  zone_name           = "az.foletta.org"
+#  resource_group_name = var.resource_group
+#  ttl                 = 300
+#  records             = ["8.8.8.8"]
+#}
 
 
 resource "azurerm_network_interface" "external" {
@@ -73,69 +73,73 @@ resource "azurerm_network_interface" "internal" {
   }
 }
 
+output "internal_ip" { value = azurerm_network_interface.internal.private_ip_address }
 
-#resource "azurerm_virtual_machine" "dev" {
-#  name                         = "fgtvm"
-#  location                     = var.location
-#  resource_group_name          = azurerm_resource_group.myterraformgroup.name
-#  network_interface_ids        = [azurerm_network_interface.fgtport1.id, azurerm_network_interface.fgtport2.id]
-#  primary_network_interface_id = azurerm_network_interface.fgtport1.id
-#  vm_size                      = var.size
-#  storage_image_reference {
-#    publisher = var.publisher
-#    offer     = var.fgtoffer
-#    sku       = var.license_type == "byol" ? var.fgtsku["byol"] : var.fgtsku["payg"]
-#    version   = var.fgtversion
-#  }
-#
-#  plan {
-#    publisher = "fortinet"
-#    name      = var.license_type == "byol" ? var.fgtsku["byol"] : var.fgtsku["payg"]
-#    product   = var.fgtoffer
-#  }
-#
-#  storage_os_disk {
-#    name              = "osDisk"
-#    caching           = "ReadWrite"
-#    managed_disk_type = "Standard_LRS"
-#    create_option     = "FromImage"
-#  }
-#
-#  # Log data disks
-#  storage_data_disk {
-#    name              = "fgtvmdatadisk"
-#    managed_disk_type = "Standard_LRS"
-#    create_option     = "Empty"
-#    lun               = 0
-#    disk_size_gb      = "30"
-#  }
-#
-#  os_profile {
-#    computer_name  = "fgtvm"
-#    admin_username = var.adminusername
-#    admin_password = var.adminpassword
-#    custom_data    = data.template_file.fgtvm.rendered
-#  }
-#
-#  os_profile_linux_config {
-#    disable_password_authentication = false
-#  }
-#
-#  boot_diagnostics {
-#    enabled     = true
-#    storage_uri = azurerm_storage_account.fgtstorageaccount.primary_blob_endpoint
-#  }
-#
-#  tags = {
-#    environment = "Terraform Demo"
-#  }
-#}
-#
-#data "template_file" "fgtvm" {
-#  template = file(var.bootstrap-fgtvm)
-#  vars = {
-#    type         = var.license_type
-#    license_file = var.license
-#  }
-#}
-#
+
+# az vm image terms accept --publisher fortinet --offer fortinet_fortigate-vm_v5 --plan fortinet_fg-vm
+
+resource "azurerm_virtual_machine" "dev" {
+  name                         = local.device_fqdn
+  location                     = var.location
+  resource_group_name          = var.resource_group
+  network_interface_ids        = [azurerm_network_interface.external.id, azurerm_network_interface.internal.id]
+  primary_network_interface_id = azurerm_network_interface.external.id
+  vm_size                      = local.instance_type
+
+  storage_image_reference {
+    publisher = "fortinet"
+    offer     = "fortinet_fortigate-vm_v5"
+    sku       = "fortinet_fg-vm"
+    version   = local.fortios
+  }
+
+  plan {
+    publisher = "fortinet"
+    name      = "fortinet_fg-vm"
+    product   = "fortinet_fortigate-vm_v5"
+  }
+
+  storage_os_disk {
+    name              = "os.${local.device_fqdn}"
+    caching           = "ReadWrite"
+    managed_disk_type = "Standard_LRS"
+    create_option     = "FromImage"
+  }
+
+  # Log data disks
+  storage_data_disk {
+    name              = "data.${local.device_fqdn}"
+    managed_disk_type = "Standard_LRS"
+    create_option     = "Empty"
+    lun               = 0
+    disk_size_gb      = "30"
+  }
+
+  os_profile {
+    computer_name  = var.vars.hostname
+    admin_username = "provision"
+    admin_password = "ASDASDkljlkj!!!123"
+    custom_data    = data.template_file.init.rendered
+  }
+
+  os_profile_linux_config {
+    disable_password_authentication = false
+    ssh_keys {
+        key_data = var.public_key
+        path = "/home/provision/.ssh/authorized_keys"
+    }
+  }
+
+  tags = {
+    environment = local.site_fqdn
+  }
+}
+
+data "template_file" "init" {
+  template = file("${path.module}/fgt_init.conf")
+  vars = {
+    hostname = local.device_fqdn
+    license = file(local.license_file)
+  }
+}
+

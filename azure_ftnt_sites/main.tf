@@ -23,7 +23,7 @@ module "ftnt_site" {
     source    = "./ftnt_site"
     site_name = each.key
     site_vars = each.value
-    public_key = tls_private_key.keypair.public_key_pem
+    public_key = tls_private_key.keypair.public_key_openssh
 }
 
 output "rsa_private_key" { 
