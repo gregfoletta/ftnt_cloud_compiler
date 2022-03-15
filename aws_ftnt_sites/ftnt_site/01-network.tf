@@ -3,82 +3,81 @@ data "aws_availability_zones" "available" {
 }
 
 locals {
-    name_suffix = "${var.site_name}.${data.aws_route53_zone.root.name}"
+    site_fqdn = "${var.site_name}.${data.aws_route53_zone.root.name}"
 }
 
-
+// Each site exists within its own VPC
 resource "aws_vpc" "ftnt_hub" {
-    cidr_block           = var.site_vars.vpc_cidr
+    cidr_block           = var.site_vars.cidr
     enable_dns_support   = true
     enable_dns_hostnames = true
     enable_classiclink   = false
     tags = {
-        Name = "vpc.${local.name_suffix}"
+        Name = "vpc.${local.site_fqdn}"
     }
 }
 
-resource "aws_route_table" "public" {
+// Iterate across all the route tables for the site and create them
+resource "aws_route_table" "route_tables" {
+  for_each = var.site_vars.route_tables
   vpc_id = aws_vpc.ftnt_hub.id
 
   tags = {
-    Name = "public.${local.name_suffix}"
+    Name = "${each.key}.${local.site_fqdn}"
   }
 }
 
-resource "aws_route_table" "private" {
-  vpc_id = aws_vpc.ftnt_hub.id
 
-  tags = {
-    Name = "private.${local.name_suffix}"
-  }
-}
-
+// igw is a special route table to allow us to do VPC ingress routing
 resource "aws_route_table" "igw" {
   vpc_id = aws_vpc.ftnt_hub.id
 
   tags = {
-    Name = "igw.${local.name_suffix}"
+    Name = "igw.${local.site_fqdn}"
   }
 }
 
+// Need to re-arrange the route tables and subnets so we
+// can create the subnets in one resource for_each call
+locals {
+    flattened_rt_subnets = flatten([
+        for route_table, subnets in var.site_vars.route_tables : [
+            for subnet_name, subnet_props in subnets : {
+                route_table = route_table
+                subnet_name = subnet_name
+                subnet_props = subnet_props
 
-resource "aws_subnet" "public_subnets" {
-    for_each = var.site_vars.networks.public
+            }
+        ]
+    ])
+}
+
+resource "aws_subnet" "subnets" {
+    for_each = {
+        for subnet in local.flattened_rt_subnets : subnet.subnet_name => subnet
+    }
     vpc_id            = aws_vpc.ftnt_hub.id
     availability_zone = data.aws_availability_zones.available.names[0]
-    cidr_block        = cidrsubnet( var.site_vars.vpc_cidr, each.value[0], each.value[1] )
+    cidr_block        = cidrsubnet( var.site_vars.cidr, each.value.subnet_props.subnet[0], each.value.subnet_props.subnet[1] + 10 )
+    map_public_ip_on_launch = try(each.value.public_ipv4.subnet_props.public_ipv4, false)
     tags = {
-        Name = "${each.key}.public.${local.name_suffix}"
+        Name = "${each.key}.${local.site_fqdn}"
     }
 }
 
-resource "aws_subnet" "private_subnets" {
-    for_each = var.site_vars.networks.private
-    vpc_id            = aws_vpc.ftnt_hub.id
-    availability_zone = data.aws_availability_zones.available.names[ try(each.value.az, 0) ]
-    cidr_block        = cidrsubnet( var.site_vars.vpc_cidr, each.value.subnet[0], each.value.subnet[1] )
-    map_public_ip_on_launch = try( each.value.public_ipv4, "false" ) 
-    tags = {
-        Name = "${each.key}.private.${local.name_suffix}"
+// Then associate them with each routing table
+resource "aws_route_table_association" "associate" {
+    for_each = {
+        for subnet in local.flattened_rt_subnets : subnet.subnet_name => subnet
     }
+
+    subnet_id      = aws_subnet.subnets[ each.key ].id
+    route_table_id = aws_route_table.route_tables[ each.value.route_table ].id
 }
 
 
-resource "aws_route_table_association" "public_associate" {
-    for_each = aws_subnet.public_subnets
 
-    subnet_id      = each.value.id
-    route_table_id = aws_route_table.public.id
-}
-
-
-resource "aws_route_table_association" "private_associate" {
-    for_each = aws_subnet.private_subnets
-
-    subnet_id      = each.value.id
-    route_table_id = aws_route_table.private.id
-}
-
+// IGW is special and gets associated separately
 resource "aws_route_table_association" "igw_associate" {
     gateway_id = aws_internet_gateway.gw.id
     route_table_id = aws_route_table.igw.id
@@ -87,40 +86,14 @@ resource "aws_route_table_association" "igw_associate" {
 resource "aws_internet_gateway" "gw" {
   vpc_id = aws_vpc.ftnt_hub.id
   tags = {
-    Name = "igw.${local.name_suffix}"
+    Name = "igw.${local.site_fqdn}"
   }
 }
 
-locals {
-    first_fgt = module.fortigate[ keys(local.fgt)[0] ]
-}
-
-resource "aws_route" "internal_route" {
-  depends_on             = [module.fortigate]
-  route_table_id         = aws_route_table.private.id
-  destination_cidr_block = "0.0.0.0/0"
-  network_interface_id   = local.first_fgt.internal_interface.id
-}
 
 
-resource "aws_route" "external_route" {
-  route_table_id         = aws_route_table.public.id
-  destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = aws_internet_gateway.gw.id
-}
-
-
-resource "aws_route" "igw_internal_routes" {
-  depends_on             = [module.fortigate]
-  for_each = { for name, network in var.site_vars.networks.private : name => network if try(network.public_ipv4, false) == true }
-  route_table_id         = aws_route_table.igw.id
-  destination_cidr_block = cidrsubnet( var.site_vars.vpc_cidr, each.value.subnet[0], each.value.subnet[1] )
-  network_interface_id   = local.first_fgt.external_interface.id
-}
-
-
-resource "aws_security_group" "fgt_external" {
-  name        = "external.sg.${local.name_suffix}"
+resource "aws_security_group" "external" {
+  name        = "external.sg.${local.site_fqdn}"
   vpc_id      = aws_vpc.ftnt_hub.id
 
     ingress {
@@ -160,12 +133,12 @@ resource "aws_security_group" "fgt_external" {
   }
 
   tags = {
-    Name        = "external.sg.${local.name_suffix}"
+    Name        = "external.sg.${local.site_fqdn}"
   }
 }
 
-resource "aws_security_group" "fgt_internal" {
-  name        = "internal.sg.${local.name_suffix}"
+resource "aws_security_group" "internal" {
+  name        = "internal.sg.${local.site_fqdn}"
   vpc_id      = aws_vpc.ftnt_hub.id
 
   ingress {
@@ -183,7 +156,7 @@ resource "aws_security_group" "fgt_internal" {
   }
 
   tags = {
-    Name        = "internal.sg.${local.name_suffix}"
+    Name        = "internal.sg.${local.site_fqdn}"
   }
 }
 

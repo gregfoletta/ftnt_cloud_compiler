@@ -1,4 +1,3 @@
-
 locals {
     fgt = { for device in var.site_vars.devices : device.hostname => device if device.type == "fgt" }
     fmg = { for device in var.site_vars.devices : device.hostname => device if device.type == "fmg" }
@@ -16,10 +15,9 @@ module "fortigate" {
     source = "./fortigate"
     site_name = var.site_name
     fgt_vars = each.value
-    external_subnet_id = aws_subnet.public_subnets[ each.value.interfaces.external.subnet ].id
-    external_security_group = aws_security_group.fgt_external
-    internal_subnet_id   = aws_subnet.private_subnets[ each.value.interfaces.internal.subnet ].id
-    internal_security_group = aws_security_group.fgt_internal
+    site_subnets = aws_subnet.subnets
+    external_security_group = aws_security_group.external
+    internal_security_group = aws_security_group.internal
     dns_root = data.aws_route53_zone.root
     az = data.aws_availability_zones.available.names[0]
     key_name = var.key_name
@@ -30,7 +28,7 @@ module "fortimanager" {
     source = "./fortimanager"
     site_name = var.site_name
     fmg_vars = each.value
-    subnet_id = aws_subnet.private_subnets[ each.value.interfaces.mgmt.subnet ].id
+    subnet_id = aws_subnet.subnets[ each.value.interfaces.mgmt.subnet ].id
     dns_root = data.aws_route53_zone.root
     az = data.aws_availability_zones.available.names[0]
     key_name = var.key_name
@@ -41,7 +39,7 @@ module "fortianalyzer" {
     source = "./fortianalyzer"
     site_name = var.site_name
     faz_vars = each.value
-    subnet_id = aws_subnet.private_subnets[ each.value.interfaces.mgmt.subnet ].id
+    subnet_id = aws_subnet.subnets[ each.value.interfaces.mgmt.subnet ].id
     dns_root = data.aws_route53_zone.root
     az = data.aws_availability_zones.available.names[0]
     key_name = var.key_name
@@ -52,7 +50,7 @@ module "fortitester" {
     source = "./fortitester"
     site_name = var.site_name
     fts_vars = each.value
-    subnet_id = aws_subnet.private_subnets[ each.value.interfaces.mgmt.subnet ].id
+    subnet_id = aws_subnet.subnets[ each.value.interfaces.mgmt.subnet ].id
     dns_root = data.aws_route53_zone.root
     az = data.aws_availability_zones.available.names[0]
     key_name = var.key_name
@@ -63,7 +61,7 @@ module "fortimail" {
     source = "./fortimail"
     site_name = var.site_name
     vars = each.value
-    subnet_id = aws_subnet.private_subnets[ each.value.interfaces.mgmt.subnet ].id
+    subnet_id = aws_subnet.subnets[ each.value.interfaces.mgmt.subnet ].id
     dns_root = data.aws_route53_zone.root
     az = data.aws_availability_zones.available.names[0]
     key_name = var.key_name
@@ -74,7 +72,7 @@ module "fortiweb" {
     source = "./fortiweb"
     site_name = var.site_name
     vars = each.value
-    subnet_id = aws_subnet.private_subnets[ each.value.interfaces.mgmt.subnet ].id
+    subnet_id = aws_subnet.subnets[ each.value.interfaces.mgmt.subnet ].id
     dns_root = data.aws_route53_zone.root
     az = data.aws_availability_zones.available.names[0]
     key_name = var.key_name
@@ -85,7 +83,7 @@ module "fortiauth" {
     source = "./fortiauth"
     site_name = var.site_name
     vars = each.value
-    subnet_id = aws_subnet.private_subnets[ each.value.interfaces.mgmt.subnet ].id
+    subnet_id = aws_subnet.subnets[ each.value.interfaces.mgmt.subnet ].id
     dns_root = data.aws_route53_zone.root
     az = data.aws_availability_zones.available.names[0]
     key_name = var.key_name
@@ -96,8 +94,8 @@ module "fortiportal" {
     source = "./fortiportal"
     site_name = var.site_name
     vars = each.value
-    subnet_id = aws_subnet.private_subnets[ each.value.interfaces.mgmt.subnet ].id
-    db_subnet_id = aws_subnet.private_subnets[ each.value.interfaces.db_a.subnet ].id
+    subnet_id = aws_subnet.subnets[ each.value.interfaces.mgmt.subnet ].id
+    db_subnet_id = aws_subnet.subnets[ each.value.interfaces.db_a.subnet ].id
     dns_root = data.aws_route53_zone.root
     az = data.aws_availability_zones.available.names[0]
     key_name = var.key_name

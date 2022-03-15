@@ -1,7 +1,9 @@
 variable "site_name" {}
 variable "fgt_vars" {}
 variable "site_subnets" {}
+variable "external_subnet_id" {}
 variable "external_security_group" {}
+variable "internal_subnet_id" {}
 variable "internal_security_group" {}
 variable "dns_root" {}
 variable "az" {}
@@ -20,40 +22,30 @@ data "aws_region" "current" {}
 
 resource "aws_network_interface" "interfaces" {
     for_each = { 
-        for idx, int in var.fgt_vars.interfaces : idx => int
+        for idx, int in var.fgt_vars.interfaces : idx + 1 => int
     }
     subnet_id   = var.site_subnets[ each.value.subnet ].id
     source_dest_check = "false"
 
+    attachment {
+        instance = aws_instance.fgt.id
+        device_index = each.key
+    }
     tags = {
         Name = "${each.value.name}.${local.device_fqdn}"
     }
 }
 
-// We attach the first interface statically in the 'aws_instance' section
-// otherwise we get the error: "VPCResourceNotSpecified: The specified 
-// instance type can only be used in a VPC. A subnet ID or network interface ID 
-// is required to carry out the request."
-
-resource "aws_network_interface_attachment" "nic_attach" {
-  for_each = {
-    for k, v in aws_network_interface.interfaces : k => v if k > 0
-  }
-  instance_id          = aws_instance.fgt.id
-  network_interface_id = each.value.id
-  device_index         = each.key
-}
-
 
 // The external and internal interface are based on their place in the 
 // list of interfaces. We return these from the module so that the routing
-output "external_interface" { value = aws_network_interface.interfaces["0"] }
-output "internal_interface" { value = aws_network_interface.interfaces["1"] }
+output "external_interface_id" { value = aws_network_interface.interfaces["1"].id }
+output "internal_interface_id" { value = aws_network_interface.interfaces["2"].id }
 
 resource "aws_eip" "fgt_external" {
     depends_on        = [aws_instance.fgt]
     vpc               = true
-    network_interface = aws_network_interface.interfaces["0"].id
+    network_interface = aws_network_interface.interfaces["1"].id
     tags = {
         Name = "${local.name_suffix}"
     }
@@ -68,19 +60,17 @@ resource "aws_route53_record" "fgt_external" {
 }
 
 
-resource "aws_network_interface_sg_attachment" "external" {
-  depends_on           = [aws_network_interface.interfaces[0]]
-  security_group_id    = var.external_security_group.id
-  network_interface_id = aws_network_interface.interfaces[0].id
-}
-
-resource "aws_network_interface_sg_attachment" "internal" {
-  for_each = {
-    for idx, v in aws_network_interface.interfaces : idx => v if idx > 0
-  }
-  security_group_id    = var.internal_security_group.id
-  network_interface_id = each.value.id
-}
+#resource "aws_network_interface_sg_attachment" "fgt_external" {
+#  depends_on           = [aws_network_interface.external]
+#  security_group_id    = var.external_security_group.id
+#  network_interface_id = aws_network_interface.external.id
+#}
+#
+#resource "aws_network_interface_sg_attachment" "fgt_internal" {
+#  depends_on           = [aws_network_interface.internal]
+#  security_group_id    = var.internal_security_group.id
+#  network_interface_id = aws_network_interface.internal.id
+#}
 
 data "template_file" "fgt_init_config" {
   template = file("${path.module}/fgt_init.conf")
@@ -108,10 +98,15 @@ resource "aws_instance" "fgt" {
         volume_type = "standard"
     }
 
-    network_interface {
-        network_interface_id = aws_network_interface.interfaces["0"].id
-        device_index         = 0
-    }
+    #network_interface {
+    #    network_interface_id = aws_network_interface.external.id
+    #    device_index         = 0
+    #}
+
+    #network_interface {
+    #    network_interface_id = aws_network_interface.internal.id
+    #    device_index         = 1
+    #}
 
     tags = {
         Name = "${local.name_suffix}"
