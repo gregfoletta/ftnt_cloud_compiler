@@ -4,15 +4,25 @@
             "default": {
                 "site_a" : {
                     "dns_root": "dev.foletta.org",
-                    "vpc_cidr": "10.254.0.0/16",
-                    "networks": {
+                    "cidr": "10.254.0.0/16",
+                    "route_tables": {
                         "public": {
-                            "untrust": [ 8, 0 ]
+                            "untrust": {
+                                "subnet": [ 8, 0 ]
+                            }
                         },
                         "private": {
                             "trust": {
                                 "subnet": [ 8, 1 ],
                                 "public_ipv4": true
+                            },
+                            "another": {
+                                "subnet": [ 8, 2 ]
+                            }
+                        },
+                        "ha": {
+                            "ha_in_ha": {
+                                "subnet": [ 8, 3 ]
                             }
                         }
                     },
@@ -21,12 +31,10 @@
                             "hostname": "firewall",
                             "type": "fgt",
                             "license_file": "licenses/FGVM02TMxxxxxxxx.lic",
-                            "fortios:": "6.2.3", 
-                            "instance_type": "c5d.large",
-                            "interfaces": {
-                                "external": { "subnet": "untrust" },
-                                "internal": { "subnet": "trust"}
-                            }
+                            "interfaces": [
+                                { "name": "outside", "subnet": "untrust" },
+                                { "name": "inside", "subnet": "trust" }
+                            ]
                         }
                     ]
                 }
