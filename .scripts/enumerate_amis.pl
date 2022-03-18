@@ -75,17 +75,27 @@ if ($args{region}) {
     warn "No region '$args{region}' found" unless @aws_regions
 }
 
+my %amis_of_device;
 
 foreach (@image_types) {
     say STDERR $_->{name};
-    print JSON->new->pretty->encode({ 
-        get_hvm_images_from_description(
+
+    $amis_of_device{locals}{amis}{ $_->{name} } = get_hvm_images_from_description(
             $_->{name_filter},
             $_->{version_regex},
             @aws_regions
-        )
-    });
+    );
+
 }
+
+print JSON->new->pretty->encode( \%amis_of_device );
+
+
+
+
+
+
+
 
 sub get_hvm_images_from_description {
     my ($name_filter, $version_regex, @regions) = @_;
@@ -112,11 +122,11 @@ sub get_hvm_images_from_description {
                 next;
             }
 
-            $amis_region_version{locals}{amis}{ $region }{ $version } = $img->ImageId;
+            $amis_region_version{ $region }{ $version } = $img->ImageId;
         }
     }
 
-    return %amis_region_version;
+    return \%amis_region_version;
 }
 
 
