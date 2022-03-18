@@ -8,7 +8,6 @@ variable "az" {}
 variable "key_name" {}
 
 locals {
-    name_suffix = "${var.fgt_vars.hostname}.${var.site_name}.${var.dns_root.name}"
     device_fqdn = "${var.fgt_vars.hostname}.${var.site_name}.${var.dns_root.name}"
     fortios = try(var.fgt_vars.fortios, "7.0.3")
     instance_type = try(var.fgt_vars.instance_type, "t2.small")
@@ -55,13 +54,13 @@ resource "aws_eip" "fgt_external" {
     vpc               = true
     network_interface = aws_network_interface.interfaces["0"].id
     tags = {
-        Name = "${local.name_suffix}"
+        Name = "${local.device_fqdn}"
     }
 }
 
 resource "aws_route53_record" "fgt_external" {
   zone_id = var.dns_root.zone_id
-  name    = "${local.name_suffix}"
+  name    = "${local.device_fqdn}"
   type    = "A"
   ttl     = "60"
   records = [aws_eip.fgt_external.public_ip]
@@ -86,7 +85,7 @@ data "template_file" "fgt_init_config" {
   template = file("${path.module}/fgt_init.conf")
   vars = {
     license =   file(local.license_file)
-    hostname = local.name_suffix
+    hostname = local.device_fqdn
   }
 }
 
@@ -100,12 +99,20 @@ resource "aws_instance" "fgt" {
     root_block_device {
         volume_type = "standard"
         volume_size = "2"
+
+        tags = {
+            Name = "os.${local.device_fqdn}"
+        }
     }
 
     ebs_block_device {
         device_name = "/dev/sdb"
         volume_size = "30"
         volume_type = "standard"
+
+        tags = {
+            Name = "secondary.${local.device_fqdn}"
+        }
     }
 
     network_interface {
@@ -114,7 +121,7 @@ resource "aws_instance" "fgt" {
     }
 
     tags = {
-        Name = "${local.name_suffix}"
+        Name = "${local.device_fqdn}"
     }
 }
 
