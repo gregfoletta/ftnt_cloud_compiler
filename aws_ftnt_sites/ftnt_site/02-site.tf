@@ -1,5 +1,6 @@
 locals {
     fgt = { for device in var.site_vars.devices : device.hostname => device if device.type == "fgt" }
+    ftnt_dev = { for device in var.site_vars.devices : device.hostname => device if device.type != "fgt" }
     fmg = { for device in var.site_vars.devices : device.hostname => device if device.type == "fmg" }
     faz = { for device in var.site_vars.devices : device.hostname => device if device.type == "faz" }
     fts = { for device in var.site_vars.devices : device.hostname => device if device.type == "fts" }
@@ -23,80 +24,92 @@ module "fortigate" {
     key_name = var.key_name
 }
 
-module "fortimanager" {
-    for_each = local.fmg
-    source = "./fortimanager"
+module "ftnt_device" {
+    for_each = local.ftnt_dev
+    source = "./fortinet_device"
     site_name = var.site_name
-    fmg_vars = each.value
-    subnet_id = aws_subnet.subnets[ each.value.interfaces.mgmt.subnet ].id
+    config = each.value
+    site_subnets = aws_subnet.subnets
+    security_group = aws_security_group.external
     dns_root = data.aws_route53_zone.root
     az = data.aws_availability_zones.available.names[0]
     key_name = var.key_name
 }
 
-module "fortianalyzer" {
-    for_each = local.faz
-    source = "./fortianalyzer"
-    site_name = var.site_name
-    faz_vars = each.value
-    subnet_id = aws_subnet.subnets[ each.value.interfaces.mgmt.subnet ].id
-    dns_root = data.aws_route53_zone.root
-    az = data.aws_availability_zones.available.names[0]
-    key_name = var.key_name
-}
-
-module "fortitester" {
-    for_each = local.fts
-    source = "./fortitester"
-    site_name = var.site_name
-    fts_vars = each.value
-    subnet_id = aws_subnet.subnets[ each.value.interfaces.mgmt.subnet ].id
-    dns_root = data.aws_route53_zone.root
-    az = data.aws_availability_zones.available.names[0]
-    key_name = var.key_name
-}
-
-module "fortimail" {
-    for_each = local.fml
-    source = "./fortimail"
-    site_name = var.site_name
-    vars = each.value
-    subnet_id = aws_subnet.subnets[ each.value.interfaces.mgmt.subnet ].id
-    dns_root = data.aws_route53_zone.root
-    az = data.aws_availability_zones.available.names[0]
-    key_name = var.key_name
-}
-
-module "fortiweb" {
-    for_each = local.fwb
-    source = "./fortiweb"
-    site_name = var.site_name
-    vars = each.value
-    subnet_id = aws_subnet.subnets[ each.value.interfaces.mgmt.subnet ].id
-    dns_root = data.aws_route53_zone.root
-    az = data.aws_availability_zones.available.names[0]
-    key_name = var.key_name
-}
-
-module "fortiauth" {
-    for_each = local.fac
-    source = "./fortiauth"
-    site_name = var.site_name
-    vars = each.value
-    subnet_id = aws_subnet.subnets[ each.value.interfaces.mgmt.subnet ].id
-    dns_root = data.aws_route53_zone.root
-    az = data.aws_availability_zones.available.names[0]
-    key_name = var.key_name
-}
-
-module "fortiportal" {
-    for_each = local.fpc
-    source = "./fortiportal"
-    site_name = var.site_name
-    vars = each.value
-    subnet_id = aws_subnet.subnets[ each.value.interfaces.mgmt.subnet ].id
-    db_subnet_id = aws_subnet.subnets[ each.value.interfaces.db_a.subnet ].id
-    dns_root = data.aws_route53_zone.root
-    az = data.aws_availability_zones.available.names[0]
-    key_name = var.key_name
-}
+#module "fortimanager" {
+#    for_each = local.fmg
+#    source = "./fortimanager"
+#    site_name = var.site_name
+#    fmg_vars = each.value
+#    subnet_id = aws_subnet.subnets[ each.value.interfaces.mgmt.subnet ].id
+#    dns_root = data.aws_route53_zone.root
+#    az = data.aws_availability_zones.available.names[0]
+#    key_name = var.key_name
+#}
+#
+#module "fortianalyzer" {
+#    for_each = local.faz
+#    source = "./fortianalyzer"
+#    site_name = var.site_name
+#    faz_vars = each.value
+#    subnet_id = aws_subnet.subnets[ each.value.interfaces.mgmt.subnet ].id
+#    dns_root = data.aws_route53_zone.root
+#    az = data.aws_availability_zones.available.names[0]
+#    key_name = var.key_name
+#}
+#
+#module "fortitester" {
+#    for_each = local.fts
+#    source = "./fortitester"
+#    site_name = var.site_name
+#    fts_vars = each.value
+#    subnet_id = aws_subnet.subnets[ each.value.interfaces.mgmt.subnet ].id
+#    dns_root = data.aws_route53_zone.root
+#    az = data.aws_availability_zones.available.names[0]
+#    key_name = var.key_name
+#}
+#
+#module "fortimail" {
+#    for_each = local.fml
+#    source = "./fortimail"
+#    site_name = var.site_name
+#    vars = each.value
+#    subnet_id = aws_subnet.subnets[ each.value.interfaces.mgmt.subnet ].id
+#    dns_root = data.aws_route53_zone.root
+#    az = data.aws_availability_zones.available.names[0]
+#    key_name = var.key_name
+#}
+#
+#module "fortiweb" {
+#    for_each = local.fwb
+#    source = "./fortiweb"
+#    site_name = var.site_name
+#    vars = each.value
+#    subnet_id = aws_subnet.subnets[ each.value.interfaces.mgmt.subnet ].id
+#    dns_root = data.aws_route53_zone.root
+#    az = data.aws_availability_zones.available.names[0]
+#    key_name = var.key_name
+#}
+#
+#module "fortiauth" {
+#    for_each = local.fac
+#    source = "./fortiauth"
+#    site_name = var.site_name
+#    vars = each.value
+#    subnet_id = aws_subnet.subnets[ each.value.interfaces.mgmt.subnet ].id
+#    dns_root = data.aws_route53_zone.root
+#    az = data.aws_availability_zones.available.names[0]
+#    key_name = var.key_name
+#}
+#
+#module "fortiportal" {
+#    for_each = local.fpc
+#    source = "./fortiportal"
+#    site_name = var.site_name
+#    vars = each.value
+#    subnet_id = aws_subnet.subnets[ each.value.interfaces.mgmt.subnet ].id
+#    db_subnet_id = aws_subnet.subnets[ each.value.interfaces.db_a.subnet ].id
+#    dns_root = data.aws_route53_zone.root
+#    az = data.aws_availability_zones.available.names[0]
+#    key_name = var.key_name
+#}
