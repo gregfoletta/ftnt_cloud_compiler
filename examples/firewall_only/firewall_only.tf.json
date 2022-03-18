@@ -5,35 +5,27 @@
                 "site_a" : {
                     "dns_root": "dev.foletta.org",
                     "cidr": "10.254.0.0/16",
-                    "route_tables": {
-                        "public": {
-                            "untrust": {
-                                "subnet": [ 8, 0 ]
-                            }
+                    "route_tables": [
+                        { 
+                            "name": "public",
+                            "subnets": [
+                                { "name": "untrust", "ipv4_subnet": [ 8, 0 ] }
+                            ]
                         },
-                        "private": {
-                            "trust": {
-                                "subnet": [ 8, 1 ],
-                                "public_ipv4": true
-                            },
-                            "another": {
-                                "subnet": [ 8, 2 ]
-                            }
-                        },
-                        "ha": {
-                            "ha_in_ha": {
-                                "subnet": [ 8, 3 ]
-                            }
+                        { 
+                            "name": "private",
+                            "subnets": [
+                                { "name": "trust", "ipv4_subnet": [ 8, 1 ] }
+                            ]
                         }
-                    },
+                    ],
                     "devices": [
                         {
                             "hostname": "firewall",
                             "type": "fgt",
-                            "license_file": "licenses/FGVM02TMxxxxxxxx.lic",
                             "interfaces": [
-                                { "name": "outside", "subnet": "untrust" },
-                                { "name": "inside", "subnet": "trust" }
+                                { "name": "untrust", "subnet": "untrust" },
+                                { "name": "trust", "subnet": "trust" }
                             ]
                         }
                     ]

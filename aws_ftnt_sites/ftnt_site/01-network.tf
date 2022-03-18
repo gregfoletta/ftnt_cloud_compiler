@@ -19,7 +19,9 @@ resource "aws_vpc" "ftnt_hub" {
 
 // Iterate across all the route tables for the site and create them
 resource "aws_route_table" "route_tables" {
-  for_each = var.site_vars.route_tables
+  for_each = {
+    for route_table in var.site_vars.route_tables: route_table.name => route_table.subnets
+  }
   vpc_id = aws_vpc.ftnt_hub.id
 
   tags = {
@@ -41,12 +43,11 @@ resource "aws_route_table" "igw" {
 // can create the subnets in one resource for_each call
 locals {
     flattened_rt_subnets = flatten([
-        for route_table, subnets in var.site_vars.route_tables : [
-            for subnet_name, subnet_props in subnets : {
-                route_table = route_table
-                subnet_name = subnet_name
-                subnet_props = subnet_props
-
+        for route_table in var.site_vars.route_tables : [
+            for subnet in route_table.subnets : {
+                route_table = route_table.name
+                subnet_name = subnet.name 
+                ipv4_subnet = subnet.ipv4_subnet
             }
         ]
     ])
@@ -57,8 +58,8 @@ resource "aws_subnet" "subnets" {
         for subnet in local.flattened_rt_subnets : subnet.subnet_name => subnet
     }
     vpc_id            = aws_vpc.ftnt_hub.id
-    availability_zone = data.aws_availability_zones.available.names[0]
-    cidr_block        = cidrsubnet( var.site_vars.cidr, each.value.subnet_props.subnet[0], each.value.subnet_props.subnet[1] + 10 )
+    availability_zone = data.aws_availability_zones.available.names[ try(each.value.az, 0) ]
+    cidr_block        = cidrsubnet( var.site_vars.cidr, each.value.ipv4_subnet[0], each.value.ipv4_subnet[1] )
     map_public_ip_on_launch = try(each.value.public_ipv4.subnet_props.public_ipv4, false)
     tags = {
         Name = "${each.key}.${local.site_fqdn}"
