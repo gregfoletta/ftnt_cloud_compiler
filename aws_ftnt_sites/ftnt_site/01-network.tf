@@ -48,6 +48,8 @@ locals {
                 route_table = route_table.name
                 subnet_name = subnet.name 
                 ipv4_subnet = subnet.ipv4_subnet
+                public_ipv4 = try(subnet.public_ipv4, false)
+                az = try(subnet.az, 0)
             }
         ]
     ])
@@ -58,9 +60,9 @@ resource "aws_subnet" "subnets" {
         for subnet in local.flattened_rt_subnets : subnet.subnet_name => subnet
     }
     vpc_id            = aws_vpc.ftnt_hub.id
-    availability_zone = data.aws_availability_zones.available.names[ try(each.value.az, 0) ]
+    availability_zone = data.aws_availability_zones.available.names[ each.value.az ]
     cidr_block        = cidrsubnet( var.site_vars.cidr, each.value.ipv4_subnet[0], each.value.ipv4_subnet[1] )
-    map_public_ip_on_launch = try(each.value.public_ipv4.subnet_props.public_ipv4, false)
+    map_public_ip_on_launch = each.value.public_ipv4
     tags = {
         Name = "${each.key}.${local.site_fqdn}"
     }
