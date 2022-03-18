@@ -1,0 +1,36 @@
+{
+   "locals" : {
+      "defaults" : {
+         "fac" : {
+            "disks": [ 2, 30 ],
+            "fortios": "6.3.17",
+            "instance_type": "t2.small" 
+         },
+         "faz" : {
+            "disks": [ 6, 80 ],
+            "fortios": "7.0.3",
+            "instance_type": "m4.large" 
+         },
+         "fml" : {
+            "disks": [ 1, 80  ],
+            "fortios": "7.0.2",
+            "instance_type": "m3.medium"
+         },
+         "fmg" : {
+            "disks": [ 6, 80 ],
+            "fortios": "7.0.3",
+            "instance_type": "m4.large"
+         },
+         "fts" : {
+            "disks": [ 6, 80 ],
+            "fortios": "4.1.1",
+            "instance_type": "c5.xlarge"
+         },
+         "fwb" : {
+            "disks": [ 2, 30 ],
+            "fortios": "6.3.17",
+            "instance_type": "t2.small"
+         }
+      }
+   }
+}
