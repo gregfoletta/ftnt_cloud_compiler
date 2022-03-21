@@ -6,7 +6,7 @@ provider "aws" {
 module "aws_ftnt_sites" {
     sites = var.sites   
     providers = { aws = aws.apse2 }
-    source = "./aws_ftnt_sites"
+    source = "./ftnt_cloud_compiler/aws_ftnt_sites"
 }
 
 output "rsa_private_key" { 
