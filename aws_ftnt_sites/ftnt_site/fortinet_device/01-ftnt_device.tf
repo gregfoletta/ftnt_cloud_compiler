@@ -17,12 +17,29 @@ locals {
 
 data "aws_region" "current" {}
 
+
+// We need the data from the subnets to get the 'cidr_block' (which is not
+// in the resource itself. We use this as part of the calculation for the
+// host IP address on the network interface
+data "aws_subnet" "subnets" {
+  for_each = var.site_subnets
+  id = each.value.id
+}
+
 resource "aws_network_interface" "interfaces" {
     for_each = { 
         for idx, int in var.config.interfaces : idx => int
     }
     subnet_id   = var.site_subnets[ each.value.subnet ].id
-    source_dest_check = "false"
+
+    // This is a bit of a mouthful, but we get the 'cidr_block' from the aws_subnet data
+    // (Keyed by the subnet name. We then use the 'ipv4_index' from the configuration to
+    // determine the address of the network itnerface. 
+    // This is required for devices like the FMG or FAZ which are licensed based on the 
+    // interface IP address
+
+    private_ips = try(each.value.ipv4_index, false) ? [ cidrhost(data.aws_subnet.subnets[ each.value.subnet ].cidr_block, each.value.ipv4_index)  ] : [ ]
+
 
     tags = {
         Name = "${each.value.name}.${local.device_fqdn}"
