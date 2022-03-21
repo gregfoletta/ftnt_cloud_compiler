@@ -37,8 +37,11 @@ resource "aws_network_interface" "interfaces" {
     // determine the address of the network itnerface. 
     // This is required for devices like the FMG or FAZ which are licensed based on the 
     // interface IP address
+    //
+    // If there is no 'ipv4_index' variable present, an empty list is provided and 
+    // a random IP address will be assigned
 
-    private_ips = try(each.value.ipv4_index, false) ? [ cidrhost(data.aws_subnet.subnets[ each.value.subnet ].cidr_block, each.value.ipv4_index)  ] : [ ]
+    private_ips = try( tobool(each.value.ipv4_index), false) ? [ cidrhost(data.aws_subnet.subnets[ each.value.subnet ].cidr_block, each.value.ipv4_index)  ] : [ ]
 
 
     tags = {
