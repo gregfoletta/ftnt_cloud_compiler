@@ -41,7 +41,7 @@ resource "aws_network_interface" "interfaces" {
     // If there is no 'ipv4_index' variable present, an empty list is provided and 
     // a random IP address will be assigned
 
-    private_ips = try( tobool(each.value.ipv4_index), false) ? [ cidrhost(data.aws_subnet.subnets[ each.value.subnet ].cidr_block, each.value.ipv4_index)  ] : [ ]
+    private_ips = try( [ cidrhost(data.aws_subnet.subnets[ each.value.subnet ].cidr_block, each.value.ipv4_index), ], [ ]) 
 
 
     tags = {
