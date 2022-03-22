@@ -1,0 +1,20 @@
+
+TF_CLOUD_WS_ID=$1
+TF_CLOUD_KEY=$(<~/.terraform.d/tf_cloud_key)
+
+if [ -z "$TF_CLOUD_WS_ID" ]
+  then
+    echo "Please supply Terraform Cloud workspace ID..."
+fi
+
+if [ -z "$TF_CLOUD_KEY" ]
+  then
+    echo "Please configure Terraform Cloud API key..."
+fi
+
+curl \
+  --header "Authorization: Bearer $TF_CLOUD_KEY" \
+  --header "Content-Type: application/vnd.api+json" \
+  "https://app.terraform.io/api/v2/workspaces/$TF_CLOUD_WS_ID/current-state-version?include=outputs" | jq --raw-output '.included[].attributes | select(.name == "rsa_private_key") | .value' > id_rsa
+
+chmod 600 id_rsa
