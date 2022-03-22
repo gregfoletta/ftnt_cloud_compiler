@@ -56,8 +56,8 @@ my @aws_regions = qw(
 
 my @image_types = (
     { name => "fgt", "name_filter" => 'FortiGate-VM64-AWS build*' }, 
-    { name => "faz", "name_filter" => 'FortiManager VM64-AWS build*' }, 
-    { name => "fmg", "name_filter" => 'FortiAnalyzer VM64-AWS build*'  },
+    { name => "fmg", "name_filter" => 'FortiManager VM64-AWS build*' }, 
+    { name => "faz", "name_filter" => 'FortiAnalyzer VM64-AWS build*'  },
     { name => "fml", "name_filter" => 'FortiMail*', version_regex => qr{\((\d+\.\d+\.\d+) GA\)} },
     { name => "fwb", "name_filter" => 'FortiWeb*BYOL*', version_regex => qr{FortiWeb-AWS-(\d+\.\d+\.\d+)} },
     { name => "fac", "name_filter" => 'FAC-*', version_regex => qr{FAC-XEN-v?(\d+(\.\d+)*)} },
