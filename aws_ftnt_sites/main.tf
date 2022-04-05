@@ -12,7 +12,7 @@ variable "sites" {}
 # Create a keypair for authentication to devices
 resource "tls_private_key" "keypair" {
   algorithm   = "RSA"
-  ecdsa_curve = "4096"
+  rsa_bits = "4096"
 }
 
 resource "local_file" "private_key" {
