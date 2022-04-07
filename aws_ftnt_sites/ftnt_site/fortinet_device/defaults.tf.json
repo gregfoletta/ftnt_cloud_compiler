@@ -3,7 +3,7 @@
       "defaults" : {
          "fac" : {
             "disks": [ 2, 30 ],
-            "fortios": "6.00",
+            "fortios": "6.2.1",
             "instance_type": "t2.small" 
          },
          "faz" : {
