@@ -60,7 +60,12 @@ my @image_types = (
     { name => "faz", "name_filter" => 'FortiAnalyzer VM64-AWS build*'  },
     { name => "fml", "name_filter" => 'FortiMail*', version_regex => qr{\((\d+\.\d+\.\d+) GA\)} },
     { name => "fwb", "name_filter" => 'FortiWeb*BYOL*', version_regex => qr{FortiWeb-AWS-(\d+\.\d+\.\d+)} },
-    { name => "fac", "name_filter" => 'FAC-*', version_regex => qr{FAC-XEN-v?(\d+(\.\d+)*)} },
+    { 
+        name => "fac",
+        "name_filter" => 'FAC-*',
+        version_regex => qr{FAC-XEN-v?(\d+(\.\d+)*)},
+        version_fixup => \&fac_version_fixup
+    },
     { name => "fts", "name_filter" => 'FortiTester-AWS-BYOL*' },
     { name => "fpc", "name_filter" => 'FortiPortal*' },
 );
@@ -83,6 +88,7 @@ foreach (@image_types) {
     $amis_of_device{locals}{amis}{ $_->{name} } = get_hvm_images_from_description(
             $_->{name_filter},
             $_->{version_regex},
+            $_->{version_fixup},
             @aws_regions
     );
 
@@ -94,11 +100,8 @@ print JSON->new->pretty->encode( \%amis_of_device );
 
 
 
-
-
-
 sub get_hvm_images_from_description {
-    my ($name_filter, $version_regex, @regions) = @_;
+    my ($name_filter, $version_regex, $version_fixup, @regions) = @_;
 
     $version_regex //= qr{\((\d+\.\d+\.\d+)\)};
 
@@ -117,11 +120,17 @@ sub get_hvm_images_from_description {
         for my $img (@{ $images->Images() }) {
             # Strip out the version number
             my ($version) = ($img->Name =~ m{$version_regex});
+
+
             if (!$version) {
                 warn "No version found for '".$img->Name."'";
                 next;
             }
 
+            # Fixup the version if required
+            $version = $version_fixup->($version) if defined($version_fixup);
+
+    
             $amis_region_version{ $region }{ $version } = $img->ImageId;
         }
     }
@@ -130,3 +139,15 @@ sub get_hvm_images_from_description {
 }
 
 
+sub fac_version_fixup {
+    my ($version) = @_;
+    use Data::Dumper;
+
+    my %version_map = (
+        "6.00" => "6.0.2",
+        "6" => "6.2.1",
+        "5.03" => "5.3.0"
+    );
+
+    return $version_map{ $version } // $version;
+}
