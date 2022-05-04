@@ -6,51 +6,99 @@ variable "az" {}
 variable "key_name" {}
 
 locals {
-   name_suffix = "${var.vars.hostname}.${var.site_name}.${var.dns_root.name}"
+    device_fqdn = "${var.vars.hostname}.${var.site_name}.${var.dns_root.name}"
     fortios = try(var.vars.fortios, "6.0.9")
     instance_type = try(var.vars.fortios, "m4.large")
+    disk_sizes = [ local.defaults[ var.config.type ].disks[0], local.defaults[ var.config.type ].disks[1] ]
     license_file = try(var.vars.license_file, "licenses/${var.dns_root.name}/${var.site_name}/${var.vars.hostname}")
 }
 
 data "aws_region" "current" {}
 
-resource "aws_network_interface" "mgmt" {
-    subnet_id   = var.subnet_id
+// We need the data from the subnets to get the 'cidr_block' (which is not
+// in the resource itself. We use this as part of the calculation for the
+// host IP address on the network interface
+data "aws_subnet" "subnets" {
+  for_each = var.site_subnets
+  id = each.value.id
+}
+
+resource "aws_network_interface" "interfaces" {
+    for_each = { 
+        for idx, int in var.config.interfaces : idx => int
+    }
+    subnet_id   = var.site_subnets[ each.value.subnet ].id
+
+    // This is a bit of a mouthful, but we get the 'cidr_block' from the aws_subnet data
+    // (Keyed by the subnet name. We then use the 'ipv4_index' from the configuration to
+    // determine the address of the network itnerface. 
+    // This is required for devices like the FMG or FAZ which are licensed based on the 
+    // interface IP address
+    //
+    // If there is no 'ipv4_index' variable present, an empty list is provided and 
+    // a random IP address will be assigned
+
+    private_ips = try( [ cidrhost(data.aws_subnet.subnets[ each.value.subnet ].cidr_block, each.value.ipv4_index), ], [ ]) 
+
+
     tags = {
-        Name = "mgmt.${local.name_suffix}"
+        Name = "${each.value.name}.${local.device_fqdn}"
     }
 }
 
-data "aws_network_interface" "mgmt" {
-    depends_on           = [aws_instance.dev]
-    id = aws_network_interface.mgmt.id
+// We attach the first interface statically in the 'aws_instance' section
+// otherwise we get the error: "VPCResourceNotSpecified: The specified 
+// instance type can only be used in a VPC. A subnet ID or network interface ID 
+// is required to carry out the request."
+
+data "aws_network_interface" "fpc" {
+    depends_on           = [aws_instance.fpc]
+    id = aws_network_interface.interfaces["0"].id
 }
 
+resource "aws_network_interface_attachment" "nic_attach" {
+  for_each = {
+    for k, v in aws_network_interface.interfaces : k => v if k > 0
+  }
+  instance_id          = aws_instance.ftnt_dev.id
+  network_interface_id = each.value.id
+  device_index         = each.key
+}
 
 resource "aws_route53_record" "external" {
   zone_id = var.dns_root.zone_id
-  name    = "${local.name_suffix}"
+  name    = "${local.device_fqdn}"
   type    = "A"
   ttl     = "60"
-  records = [data.aws_network_interface.mgmt.association[0].public_ip]
+  records = [data.aws_network_interface.fpc.association[0].public_ip]
 }
 
-#resource "aws_network_interface_sg_attachment" "external" {
-#  depends_on           = [aws_network_interface.fmg_mgmt]
-#  security_group_id    = var.security_group.id
-#  network_interface_id = aws_network_interface.fmg_mgmt.id
-#}
+resource "aws_network_interface_sg_attachment" "internal" {
+  for_each = {
+    for idx, v in aws_network_interface.interfaces : idx => v
+  }
+  security_group_id    = var.security_group.id
+  network_interface_id = each.value.id
+}
 
 data "template_file" "init_config" {
   template = file("${path.module}/init.conf")
   vars = {
     license =   file(local.license_file)
-    db_hostname = "db.${local.name_suffix}"
+    db_hostname = "db.${local.device_fqdn}"
+  }
+}
+
+data "template_file" "init_config" {
+  template = file("${path.module}/init.conf")
+  vars = {
+    license =   file(local.license_file)
+    hostname = local.device_fqdn
   }
 }
 
 resource "aws_instance" "dev" {
-    ami               = local.amis[data.aws_region.current.name][local.fortios]
+    ami               = local.amis["fpc"][data.aws_region.current.name][local.fortios]
     instance_type     = local.instance_type
     availability_zone = var.az
     key_name          = var.key_name
@@ -68,11 +116,11 @@ resource "aws_instance" "dev" {
     }
 
     network_interface {
-        network_interface_id = aws_network_interface.mgmt.id
+        network_interface_id = aws_network_interface.interfaces["0"].id
         device_index         = 0
     }
 
     tags = {
-        Name = "${local.name_suffix}"
+        Name = "${local.device_fqdn}"
     }
 }

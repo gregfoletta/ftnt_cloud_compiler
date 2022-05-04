@@ -1,6 +1,7 @@
 locals {
     fgt = { for device in var.site_vars.devices : device.hostname => device if device.type == "fgt" }
-    ftnt_dev = { for device in var.site_vars.devices : device.hostname => device if device.type != "fgt" }
+    ftnt_dev = { for device in var.site_vars.devices : device.hostname => device if (device.type != "fgt" || device.type != "fpc" }
+    fpc = { for device in var.site_vars.devices : device.hostname => device if device.type == "fpc" }
 }
 
 # For each site, create the site
@@ -20,6 +21,18 @@ module "fortigate" {
 module "ftnt_device" {
     for_each = local.ftnt_dev
     source = "./fortinet_device"
+    site_name = var.site_name
+    config = each.value
+    site_subnets = aws_subnet.subnets
+    security_group = aws_security_group.external
+    dns_root = data.aws_route53_zone.root
+    az = data.aws_availability_zones.available.names[0]
+    key_name = var.key_name
+}
+
+module "fortiportal" {
+    for_each = local.fc
+    source = "./fortiportal"
     site_name = var.site_name
     config = each.value
     site_subnets = aws_subnet.subnets
