@@ -12,9 +12,10 @@ use Net::SSH::Perl;
 my %args;
 GetOptions(
     \%args,
-    'i=s',
-    'c=s',
-    'v',
+    'identity=s',
+    'config=s',
+    'no-api-key',
+    'verbose',
     'help' => sub { pod2usage(1) }
 ) or pod2usage(2);
 
@@ -32,7 +33,7 @@ main();
 sub main {
     # Open the JSON configuration and slurp the contents
     my $json;
-    open( my $fh, "<:encoding(UTF-8)", $args{c} ) or die "Could not open configuration '$args{c}'";
+    open( my $fh, "<:encoding(UTF-8)", $args{config} ) or die "Could not open configuration '$args{c}'";
     { local $/; $json = <$fh>; }
 
     # Decode the JSON
@@ -41,11 +42,13 @@ sub main {
     # Build the inventory
     my $inventory = build_ansible_inventory($tf_config);
 
-    # Get the API keys for the FGTs
-    my $hosts = $inventory->{all}{hosts};
-    for my $device_fqdn (keys %{ $hosts  }) {
-        next unless $hosts->{ $device_fqdn }{type} eq 'fgt';
-        $hosts->{ $device_fqdn }{api_key} = generate_fgt_api_key($device_fqdn);
+    # Get the API keys for the FGTs, unless our cmd line argument determines we skip
+    unless ($args{'no-api-key'}) {
+        my $hosts = $inventory->{all}{hosts};
+        for my $device_fqdn (keys %{ $hosts  }) {
+            next unless $hosts->{ $device_fqdn }{type} eq 'fgt';
+            $hosts->{ $device_fqdn }{api_key} = generate_fgt_api_key($device_fqdn);
+        }
     }
     
     print encode_json( $inventory );
@@ -93,7 +96,10 @@ sub generate_fgt_api_key {
     my $ssh_c = Net::SSH::Perl->new(
         $fgt_fqdn,
         identity_files => [ $opts{rsa_key} ],
-        debug => $args{v}
+        debug => $args{v},
+        options => [
+            "StrictHostKeyChecking=no"
+        ]
     );
 
     $ssh_c->login($opts{username});
@@ -118,15 +124,43 @@ sub build_ansible_inventory {
         )
     };
 
+    # Add in groups based on the device type
+    foreach ( tf_config_iterate($tf_config, \&ansible_device_type) ) {
+        $inventory->{all}{children}{ $_->[0] }{hosts}{$_->[1]} = {};
+    }
+
+    # Add in groups based on the site
+    foreach ( tf_config_iterate($tf_config, \&ansible_device_site) ) {
+        $inventory->{all}{children}{ $_->[0] }{hosts}{$_->[1]} = {};
+    }
+
     return $inventory;
 }
 
 sub ansible_hosts {
     my ($site, $device) = @_;
-    my $device_fqdn = join(".", $device->{hostname}, $site->{name}, $site->{dns_root});
+    my $device_fqdn = device_fqdn($site, $device);
 
     return ( $device_fqdn => { type => $device->{type} } );
 }
 
+sub ansible_device_type {
+    my ($site, $device) = @_;
+    my $device_fqdn = device_fqdn($site, $device);
+
+    return [ $device->{type}, $device_fqdn ];
+}
+
+sub ansible_device_site {
+    my ($site, $device) = @_;
+    my $device_fqdn = device_fqdn($site, $device);
+
+    return [ $site->{name}, $device_fqdn ];
+}
+
+sub device_fqdn {
+    my ($s, $d) = @_;
+    return join(".", $d->{hostname}, $s->{name}, $s->{dns_root});
+}
 
     
