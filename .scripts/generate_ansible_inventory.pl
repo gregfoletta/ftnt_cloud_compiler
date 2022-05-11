@@ -25,6 +25,8 @@ GetOptions(
 
 =head1 SYNOPSIS
 
+./generate_ansible_inventory.pl --config <config.tf.json> [--identity <id_rsa> --no-api-key --verbose]
+
 =cut
 
 main();
@@ -32,12 +34,14 @@ main();
 
 sub main {
     # Open the JSON configuration and slurp the contents
+    die "No 'config.tf.json' supplied" unless $args{config};
+
     my $json;
-    open( my $fh, "<:encoding(UTF-8)", $args{config} ) or die "Could not open configuration '$args{c}'";
+    open( my $fh, "<:encoding(UTF-8)", $args{config} ) or die "Could not open configuration '$args{config}'";
     { local $/; $json = <$fh>; }
 
     # Decode the JSON
-    my $tf_config = decode_json($json);
+    my $tf_config = JSON->new->utf8->decode($json);
 
     # Build the inventory
     my $inventory = build_ansible_inventory($tf_config);
@@ -51,7 +55,7 @@ sub main {
         }
     }
     
-    print encode_json( $inventory );
+    print JSON->new->utf8->pretty->encode( $inventory );
 
 
 } 
@@ -96,7 +100,7 @@ sub generate_fgt_api_key {
     my $ssh_c = Net::SSH::Perl->new(
         $fgt_fqdn,
         identity_files => [ $opts{rsa_key} ],
-        debug => $args{v},
+        debug => $args{verbose},
         options => [
             "StrictHostKeyChecking=no"
         ]
