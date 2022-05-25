@@ -27,11 +27,16 @@ resource "aws_route" "internal_route" {
 
 
 // Now we need to route all of the subnets in through the external interface
-// of the firewall
-
+// EXCEPT the subnet of the external subnet. We find this by matching the
+// checking the subnet IDs with the ID from the external interface (found above)
+locals {
+    internal_subnets = {
+        for subnet_name,subnet_values in aws_subnet.subnets : subnet_name => subnet_values if subnet_values.id != data.aws_network_interface.external.subnet_id
+    }
+}
 resource "aws_route" "igw_internal_routes" {
   depends_on             = [module.fortigate]
-  for_each = aws_subnet.subnets
+  for_each = local.internal_subnets
   route_table_id         = aws_route_table.igw.id
   #destination_cidr_block = cidrsubnet( var.site_vars.cidr, each.value.subnet[0], each.value.subnet[1] )
   destination_cidr_block = each.value.cidr_block
